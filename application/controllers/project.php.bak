@@ -1,0 +1,351 @@
+<?php if ( ! defined('BASEPATH')) exit('No direct script access allowed');
+
+class Project extends CI_Controller {
+
+	public $data = array();
+	public $project_fw = array();
+	public $rules = array();
+	public $html = '';
+	public $nexturl;
+	public $laststate;
+	public $projid;
+	 
+	function __construct() {
+		parent::__construct();
+		$this->load->model('attachments_model', 'attach');
+		$this->data['login'] = $this->session->userdata('logged_in');
+		$this->data['current_user'] = $this->session->userdata('current_user');
+		$this->data['current_user_id'] = $this->session->userdata('user_id');
+		$this->data['jur_id'] = $this->session->userdata('jur_id');
+		$this->data["topics"] = $this->topics->get_topics();
+		$this->projid = 4;
+		$this->laststate = $this->cek_state($this->projid);
+	}
+	
+	public function index() {
+		$this->redirect_to_state($this->laststate);
+	}
+	
+	/**
+	* ---------======@[ NEW PROJECT ]@======--------- 
+	*/
+	public function new_project()
+	{
+		if( !is_login($this->data['login']) ){
+			show_404();
+		}
+		
+		$this->data['types'] =  $this->types->get_types();
+		$this->data['title'] = 'New Project'; 
+
+		$this->load->view("project/new_project", $this->data);
+	}
+	
+	/**
+	* ---------======@[ NEW FORM ]@======--------- 
+	*/
+	public function new_form() {
+		if( !is_login($this->data['login']) || ( $this->input->post("project_state") == "" && ($this->laststate != $this->uri->segment( 2 )) ) ){
+			show_404();
+		}
+		
+		$prevstate_process = $this->input->post("project_state");
+		$this->data["type"] = $this->input->post("project_type");
+		
+		$this->set_destination($this->data["type"], $prevstate_process);
+		$this->load->view("project/form_new", $this->data);
+	}
+	
+	/**
+	* ---------======@[ UPLOAD DOC ]@======--------- 
+	*
+	* saving new form and load new step page atau load current state page
+	*/
+	public function upload_doc() {
+		if( !is_login($this->data['login']) || ( $this->input->post("project_state") == "" && ($this->laststate != $this->uri->segment( 2 )) ) ){
+			show_404();
+		}
+		$submit = $this->input->post( "save_project" );
+		if( $submit != "" ) {
+			echo $this->input->post( "save_project" );
+			$this->data["type"] = $this->input->post( "project_type" );
+			$this->data["status"] = $this->input->post( "project_status" );
+			$this->data["state"] = $this->input->post( "project_state" );
+			$this->data["nextstate"] = $this->input->post( "nextstate" );
+			$this->data["nexturl"] = $this->input->post( "nexturl" );
+			$project_title = $this->input->post( "project_title" );
+			$project_content = $this->input->post( "project_content" );
+			$project_author = $this->input->post( "project_author" );
+			$project_reviewer = $this->input->post( "project_reviewer" );
+			$project_year = $this->input->post( "project_year" );
+			$project_chapters = $this->input->post( "project_chapters" );
+			
+			$this->form_validation->set_rules('project_title', 'Judul', 'required|xss_clean');
+			$this->form_validation->set_rules('project_content', 'Abstract', 'required|xss_clean');
+			$this->form_validation->set_rules('project_author', 'Nama Lengkap', 'required|xss_clean');
+			$this->form_validation->set_rules('project_year', 'Tahun Pembuatan', 'required|xss_clean');
+	        if($this->form_validation->run() == FALSE) {
+	        	$prevstate_process = $this->prev_state($this->data["type"], $this->data["state"]);
+	        	$this->data["type"] = $this->input->post("project_type");
+	        	$this->set_destination($this->data["type"], $prevstate_process);
+	            $this->load->view("project/form_new", $this->data);
+			} else {
+				//print_r( $this->input->post() );
+				$project_state = $this->data["state"] = $this->input->post( "project_state" );
+				$project_state_next_state = $this->data["nextstate"] = $this->input->post( "nextstate" );
+				$project_state_next_url = $this->data["nexturl"] = $this->input->post( "nexturl" );
+				$this->set_destination($this->data["type"], $this->data["state"]);
+				
+				//save disini 2012-05-31 06:36:46
+				$save = $this->save_new_project($this->input->post());
+				if( $save ){
+					$this->load->view("project/upload_doc", $this->data);
+				}
+			}
+		} else {
+			$par = array(
+				"rb_projects_state" => array(
+					"project_id" => $this->projid
+				)
+			);
+			$state = $this->projects_model->get_projects_state($par);
+			
+			$prevstate_process = $state[0]["project_state"];
+			
+			$par = array(
+				"rb_projects" => array(
+					"project_id" => $this->projid
+				)
+			);
+			$project = $this->projects_model->get_projects($par);
+			
+			$this->data["type"] = $project[0]["type_id"];
+			$this->set_destination($this->data["type"], $prevstate_process);
+			
+			$this->load->view("project/upload_doc", $this->data);
+		}
+	}
+	
+	/**
+	* ---------======@[ INVITE REVIEWER ]@======--------- 
+	*
+	* upload dokumen dan invite reviewer form 
+	*/
+	public function invite_reviewer() {
+	
+		if( !is_login($this->data['login']) || ( $this->input->post("project_state") == "" && ($this->laststate != $this->uri->segment( 2 )) ) ){
+			show_404();
+		}
+		
+		$submit = $this->input->post( "upload_file" );
+		$countfile = $this->input->post("num_file");
+		//$this->output->enable_profiler(TRUE);
+		
+		if( $submit == "Upload and Next Step" ) {
+			
+			$this->data["type"] = $this->input->post( "project_type" );
+			$this->data["status"] = $this->input->post( "project_status" );
+			$this->data["state"] = $this->input->post( "project_state" );
+			$this->data["nextstate"] = $this->input->post( "nextstate" );
+			$this->data["nexturl"] = $this->input->post( "nexturl" );
+		
+			$cek = true;
+			for( $x = 0; $x < $countfile; $x++ ) {
+			
+				if ( ! $this->upload->do_upload( "project_attachment_".$x ) ) {
+					
+					$this->data["error"] = array('error' => $this->upload->display_errors());
+					$prevstate_process = $this->prev_state($this->data["type"], $this->data["state"]);
+		        	$this->data["type"] = $this->input->post("project_type");
+		        	$this->set_destination($this->data["type"], $prevstate_process);
+		            $this->load->view("project/upload_doc", $this->data);
+		            continue;
+		            
+				} else {
+				
+					echo "<pre>";
+					$data = array('upload_data' => $this->upload->data());
+					print_r($data);
+					echo "<pre>";
+					
+				}
+			}
+			
+			
+			
+		} else {
+		
+			echo "dua";
+		
+		}
+		
+	}
+	
+	/**
+	* ---------======@[ SAVE NEW PROJECT ]@======--------- 
+	*
+	* saving new project
+	*/
+	private function save_new_project($post){
+		
+		$datestring = "%Y-%m-%d %H:%i:%s";
+		$time = time();			
+		$now =  mdate($datestring, $time);
+		
+		$exp = explode( ",", $post["project_reviewer"] );
+		$reviewer = serialize($exp);
+		
+		$data_project = array(
+			"project_id" => NULL,
+			"project_chapters" => $post["project_chapters"],
+			"project_title" => $post["project_title"],
+			"project_content" => $post["project_content"],
+			"project_is_parent" => "yes",
+			"project_parent" => NULL,
+			"project_made" => $now,
+			"project_published" => NULL,
+			"project_status" => "created",
+			"project_attachment_count" => NULL,
+			"project_downloadable" => "yes",
+			"project_year" => $post["project_year"],
+			"type_id" => $this->data["type"],
+			"jur_id" => $this->data['jur_id'],
+			"user_id" => $this->data['current_user_id'],
+			"project_author" => $post["project_author"],
+			"project_reviewer" => $reviewer,
+		);
+		
+		$insert_project = $this->projects_model->add_new_project($data_project);
+		
+		if( $insert_project ) {
+			$par = array(
+				"rb_projects_fw" => array(
+					"type_id" => $this->data["type"]
+				)
+			);
+			
+			$fw = $this->projects_model->get_projects_fw($par);
+			$data_project_state = array(
+				"project_state_id" => NULL,
+				"project_id" => $insert_project,
+				"project_state" => $post["project_state"],
+				"project_state_next_state" => $post["nextstate"],
+				"project_state_next_url" => $post["nexturl"],
+				"project_state_fw" => $fw[0]["fw"]		
+			);
+			
+			return $insert_project_state = $this->projects_model->add_new_project_state($data_project_state);
+		}
+	}
+	
+	/**
+	* ---------======@[ GET NEXT URL ]@======--------- 
+	*/
+	private function get_next_url( $state ) {
+		switch ($state) {
+			case "pilih project" :
+				break;
+			case "isi form project baru" :
+				break;
+			case "upload dokumen" :
+				$this->nexturl =  "upload_doc";
+				break;
+			case "undang reviewer/collaborator" :
+				$this->nexturl =  "invite_reviewer";
+				break;
+			case "review/collaboration" :
+				$this->nexturl =  "review";
+				break;
+			case "penyetujuan reviewer" :
+				$this->nexturl =  "approval";
+				break;
+			case "verifikasi project" :
+				$this->nexturl =  "verification";
+				break;
+			case "admin review" :
+				$this->nexturl =  "admin_review";
+				break;
+			case "penyetujuan admin" :
+				$this->nexturl =  "admin_approval";
+				break;
+			case "publikasikan project" :
+				$this->nexturl =  "publish";
+				break;
+		}
+		return $this->nexturl;
+	}
+	
+	/**
+	* ---------======@[ CEK CURRENT/RECORDED STATE ]@======--------- 
+	*/
+	private function cek_state($projid) {
+		$par = array(
+			"rb_projects_state" => array(
+				"project_id" => $projid
+			)
+		);
+		$state = $this->projects_model->get_projects_state($par); 
+		return $lasturl = $this->get_next_url($state[0]["project_state"]);
+	}
+	
+	private function redirect_to_state($state) {
+		redirect("project/".$state, "refresh");
+	}
+	
+	/**
+	* ---------======@[ SET DESTINATION ]@======--------- 
+	* 
+	* inti dari route step.
+	*/
+	private function set_destination($type, $prevstate_process) {
+		$par = array(
+			"rb_projects_fw" => array(
+				"type_id" => $type
+			)
+		);
+		
+		$this->data["fw"] = $this->projects_model->get_projects_fw($par);
+		$this->project_fw = unserialize($this->data["fw"][0]["fw"]);
+		$prevstate = array_search( $prevstate_process, $this->project_fw );
+		$currentstate = $prevstate+1;
+		$this->data["state"] = $this->project_fw[$currentstate];
+		$this->data["currenturl"] = $this->get_next_url( $this->data["state"] );
+		$nextstate = $currentstate+1;
+		$this->data["nextstate"] = $this->project_fw[$nextstate];
+		$this->data["nexturl"] = $this->get_next_url( $this->data["nextstate"] );
+	}
+	
+	/**
+	* ---------======@[ CEK PREV STATE ]@======--------- 
+	*/
+	private function prev_state($type, $state_process) {
+		$par = array(
+			"rb_projects_fw" => array(
+				"type_id" => $type
+			)
+		);
+		
+		$fw = $this->projects_model->get_projects_fw($par);
+		$this->project_fw = unserialize($fw[0]["fw"]);
+		$prevstate = array_search( $state_process, $this->project_fw );
+		return $this->project_fw[$prevstate-1];
+	}
+	
+	
+	/////////////////////////////////
+	
+	public function single_project( $seg ) {
+		echo $seg;
+		echo "single mmmmm    ";
+		$this->load->view("project/single_project", $this->data);
+	}
+	
+	public function type_project( $seg ) {
+		echo $seg;
+		$this->load->view("project/single_project", $this->data);
+	}
+	 
+	
+	
+	
+}

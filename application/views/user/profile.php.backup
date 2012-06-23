@@ -1,0 +1,106 @@
+<?php
+	/******************************************
+	* View untuk Profile (including edit datum)
+	* author : pratama hasriyan
+	******************************************/
+	
+	$this->load->view("header");
+	
+	
+?>
+	<div class="container-fluid">
+		<div class="row-fluid">
+			<div class="span2">
+				<?php $this->load->view("left-sidebar");?>
+			</div><!--/span-->
+
+			<div class="tes">
+
+			</div>
+			
+			<div class="span7">
+				<h2 class="profile-dashboard-title">
+					<?php 
+					if($user_data[0]['user_front_title'])
+					{
+						echo $user_data[0]['user_front_title'].' ';
+					}
+					echo $user_data[0]['user_firstname'].' '.$user_data[0]['user_middlename'].' '.$user_data[0]['user_lastname'].' ';
+					if($user_data[0]['user_back_title'])
+					{
+						echo $user_data[0]['user_back_title'];
+					}
+					?>
+				</h2>
+				<?php
+					$user_url = ($user_data[0]['user_unique_url']=='') ? $user_data[0]['user_activation_key'] : $user_data[0]['user_unique_url']; 
+				?>
+				<a href="<?php echo base_url().'user/'.$user_url;?>" class="help-block" id="user_url">http://localhost/rakbuku/user<span>/<?php echo $user_url;?></span></a>
+				<hr />
+				<div class="tabbable">
+					<input id="url" type="hidden" name="url" value="<?php echo base_url().'user/'.$user_url.'/load_templ';?>">
+					<?php $this->load->view("user/nav-dashboard");?>
+					
+					<div class="tab-content">
+						<div class="tab-pane active" id="1">
+							<div id="tmpl">
+
+								<div>
+									<a>
+										name
+									</a>
+									<a>
+									</a>
+									<a class="edit-button" href="#" style="display: none; ">
+										<i class="icon-pencil"></i>
+									</a>
+									<div class="clr"></div>
+									<hr class="item-separator">
+
+								</div>
+
+								<!-- <div class="item-holder">
+									<div class="span5 span-templ">
+										name
+									</div>
+									<div class="span6 item-value capitalized editable" id="user_front_title">
+									</div>
+									<a class="edit-button" href="#" style="display: none; ">
+										<i class="icon-pencil"></i>
+									</a>
+									<div class="clr"></div>
+									<hr class="item-separator">
+
+								</div> -->
+
+							</div>
+
+							
+
+							<ul class="treeItem">
+							    <li>
+							      <a class="name" href="javascript:void(0)">name</a>
+							      <div class="children"></div>
+							    </li>
+							  </ul>
+
+							<?php //echo $template;?>
+
+						</div>
+					</div>
+				</div>
+			</div><!--/span-->
+			
+			<div class="span3">
+				<?php $this->load->view("right-sidebar");?>
+			</div><!--/span-->
+			
+		</div><!--/row-->
+	
+		<hr>
+	
+<?php
+	$this->load->view("footer");
+?>
+
+	

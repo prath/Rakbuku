@@ -1,0 +1,130 @@
+$(document).ready(function() {
+
+	$('#myModal').modal({
+		backdrop : false,
+		show : false
+	});
+
+	form = '<div class="modal-header"><a class="close" data-dismiss="modal">×</a><h3></h3></div><form id="additemform" action="" method=""><div class="modal-body"><input class="input-xlarge" type="text" name="fak_name" id="fak_name" placeholder="Nama Fakultas"></div><div class="modal-footer"><input type="submit" name="addfak" id="submit" class="btn btn-primary" value="Save"><a href="#" data-dismiss="modal" class="btn">Close</a></div></form>';
+
+
+	$('a[data-toggle="modal"]').click(function(){
+		elname = $(this).attr('rel');
+		//el = window[$(this).attr('rel')];
+		el = form;
+		url = $(this).siblings('input.url').val();
+		title = $(this).siblings('input.title').val();
+		id = $(this).parent().siblings('td:eq(0)');
+		value = $(this).parent().siblings('td:eq(1)');
+		tr = $(this).parent().parent().index();
+		//alert(tr);
+	})
+
+	$('#myModal').on('shown', function () {
+		//alert(target);
+		$(this).load('http://localhost/rakbuku/admin/jurusan/get_modal', function(){
+				$(this).find('.modal-header h3').text(title);
+				$(this).find('form#additemform').attr('action', url);
+				if(id.length)
+		  		{
+		  			fak_id = id.text();
+		  			//alert(fak_id);
+		  		}
+		  		if(value.length)
+		  		{
+		  			fak_name = value.text();
+		  		}
+		  		if(elname == 'edititem')
+		  		{
+		  			$('#fak_name').attr('value', fak_name);
+		  			$('#submit').removeClass('btn-primary').addClass('btn-warning').val('Edit');
+		  		}
+		  		if(elname == 'delitem')
+		  		{
+					$('#fak_name').attr('value', fak_name);
+					$('#fak_name').addClass('disabled');
+					$('#fak_name').attr('disabled', 'disabled');
+					$('#submit').removeClass('btn-primary').addClass('btn-danger').val('Delete');
+		  		}
+			}
+		);
+  		//$('.modal').html(el);
+  		/*$(this).find('.modal-header h3').text(title);
+  		$('form#additemform').attr('action', url);
+  		if(id.length)
+  		{
+  			fak_id = id.text();
+  			//alert(fak_id);
+  		}
+  		if(value.length)
+  		{
+  			fak_name = value.text();
+  		}
+  		if(elname == 'edititem')
+  		{
+  			$('#fak_name').attr('value', fak_name);
+  			$('#submit').removeClass('btn-primary').addClass('btn-warning').val('Edit');
+  		}
+  		if(elname == 'delitem')
+  		{
+			$('#fak_name').attr('value', fak_name);
+			$('#fak_name').addClass('disabled');
+			$('#fak_name').attr('disabled', 'disabled');
+			$('#submit').removeClass('btn-primary').addClass('btn-danger').val('Delete');
+  		}*/
+  		$('form#additemform').submit(function(e){
+  			e.preventDefault();
+  			seri = $(this).serialize();
+  			if(id.length)
+  			{
+  				seri = seri+'&fak_id='+fak_id;
+  			}
+  			//alert(seri);
+  			uri = $(this).attr('action');
+  			if($('#fak_name').val() == '')
+  			{
+  				alert('data harus diisi');
+  			}
+  			else
+  			{
+	  			$.ajax({
+				    type: "POST",
+					data: seri,
+					url: uri,
+				    success: function(response){
+
+				    	if(response == 'gagal')
+				    	{
+				    		alert('data telah ada atau gagal memasukan, coba yang lain');
+				    	}
+				    	else if(response == 'del sukses')
+				    	{
+				    		$('tbody tr:eq('+tr+')').remove();
+					    	$('#myModal').modal('toggle');
+				    		location.reload();
+				    	}
+				    	else
+				    	{
+				    		if(elname == 'additem')
+					    	{
+					    		$(response).appendTo('tbody');
+					    	}
+					    	else if(elname == 'edititem')
+					    	{
+					    		$('tbody tr:eq('+tr+')').html('').html(response);
+					    	}
+					    	else if(elname == 'delitem')
+					    	{
+					    		$('tbody tr:eq('+tr+')').remove();
+					    	}
+				    		$('#myModal').modal('toggle');
+				    		location.reload();
+				    	}
+				    },
+				dataType:"html"
+				});
+  			};
+  		})
+	});
+
+});

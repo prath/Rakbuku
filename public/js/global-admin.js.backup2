@@ -1,0 +1,133 @@
+$(document).ready(function() {
+
+	$('#myModal').modal({
+		backdrop : false,
+		show : false
+	});
+	$('a.modal-button').click(function(){
+		base = $('#base').val();
+		dest = $('#base').attr('name');
+		cont = $('#base').attr('class');
+
+		elname = $(this).attr('rel');
+		url = $(this).siblings('input.url').val();
+		title = $(this).siblings('input.title').val();
+
+		id = $(this).parent().siblings('td:eq(0)');
+		value = $(this).parent().siblings('td:eq(1)');
+		tr = $(this).parent().parent().index();
+		
+		ctrl = base+'admin/'+cont+'/get_modal_'+dest;
+		load_on_modal(ctrl);
+	})
+	
+
+	/*
+	* fungsi untuk add dan edit 
+	*/ 
+	function load_on_modal(cntrl)
+	{
+		//main function
+		$('#myModal').on('shown', function (){
+			//load modal.php
+			$(this).load(cntrl, function(){
+				//inisialisasi
+				$(this).find('.modal-header h3').text(title);
+				$(this).find('form#additemform').attr('action', url);
+
+				if(id.length)
+		  		{
+		  			ID = id.text();
+		  		}
+		  		if(value.length)
+		  		{
+		  			name = value.text();
+		  		}
+		  		if(elname == 'edititem')
+		  		{
+		  			$('#name').attr('value', name);
+		  			$('#submit').removeClass('btn-primary').addClass('btn-warning').val('Edit');
+		  		}
+		  		if(elname == 'delitem')
+		  		{
+		  			//alert('hey');
+		  			if($('select').length)
+		  			{
+		  				$('select').attr('disabled', 'disabled');
+		  			}
+					$('#name').attr('value', name);
+					$('#name').addClass('disabled');
+					$('#name').attr('disabled', 'disabled');
+					$('#submit').removeClass('btn-primary').addClass('btn-danger').val('Delete');
+		  		}// end inisialisasi
+
+		  		//ajax
+		  		$(this).find('form#additemform').submit(function(e){
+		  			e.preventDefault();
+		  			seri = $(this).serialize();
+		  			if(id.length)
+		  			{
+		  				seri = seri+'&ID='+ID;
+		  			}
+		  			//alert(seri);
+		  			uri = $(this).attr('action');
+		  			if($('#name').val() == '')
+		  			{
+		  				alert('data harus diisi');
+		  			}
+		  			else
+		  			{
+			  			$.ajax({
+						    type: "POST",
+							data: seri,
+							url: uri,
+						    success: function(response){
+
+						    	if(response == 'gagal')
+						    	{
+						    		alert('data telah ada atau gagal memasukan, coba yang lain');
+						    	}
+						    	else if(response == 'del sukses')
+						    	{
+						    		$('tbody tr:eq('+tr+')').remove();
+							    	$('#myModal').modal('toggle');
+						    		location.reload();
+						    	}
+						    	else
+						    	{
+						    		if(elname == 'additem')
+							    	{
+							    		//alert(response);
+							    		$(response).appendTo('tbody');
+							    	}
+							    	else if(elname == 'edititem')
+							    	{
+							    		$('tbody tr:eq('+tr+')').html('').html(response);
+							    	}
+							    	else if(elname == 'delitem')
+							    	{
+							    		$('tbody tr:eq('+tr+')').remove();
+							    	}
+						    		$('#myModal').modal('toggle');
+						    		location.reload();
+						    	}
+						    },
+						dataType:"html"
+						});
+		  			};
+		  		})//end ajax
+			});//end load modal.php
+		});//end main function
+	}//end fungsi untuk add dan edit 
+
+	if($('.activemember, .deactivemember').length)
+	{
+		$('.activemember, .deactivemember').click(function(e){
+			e.preventDefault();
+			alert('tes');
+
+		})
+	}
+
+
+});
