@@ -32,7 +32,6 @@ class Project extends Base {
 		
 	}
 	
-	//oke dirubah deui kumaha
 	public function index() {
 		$url = $this->uri->segment(2);
 		$this->laststate = $this->cek_state($this->dataproj[0]["project_id"]);
