@@ -32,8 +32,9 @@ class Project extends Base {
 		
 	}
 	
+	//oke dirubah deui kumaha
 	public function index() {
-		echo $url = $this->uri->segment(2);
+		$url = $this->uri->segment(2);
 		$this->laststate = $this->cek_state($this->dataproj[0]["project_id"]);
 		$match = array_search($this->laststate, $this->defstates);
 		if( $this->laststate !== "review" && $match ){
